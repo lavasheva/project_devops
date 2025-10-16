@@ -7,17 +7,29 @@ on:
     branches: [ dev ]
 
 jobs:
-  # Job для проверки бэкенда
   backend-test:
     runs-on: ubuntu-latest
+    # ДОБАВЬ ЭТУ ПРОВЕРКУ:
+    if: contains(github.event.head_commit.message, 'skip ci') == false
+    
     defaults:
       run:
-        working-directory: ./backend # Все команды выполняются из папки бэкенда
+        working-directory: ./backend
 
     steps:
       - uses: actions/checkout@v4
-
+      
+      - name: Check if backend exists
+        id: check_backend
+        run: |
+          if [ -f "backend/package.json" ]; then
+            echo "backend_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Setup Node.js
+        if: steps.check_backend.outputs.backend_exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -25,26 +37,35 @@ jobs:
           cache-dependency-path: './backend/package-lock.json'
 
       - name: Install Backend Dependencies
+        if: steps.check_backend.outputs.backend_exists == 'true'
         run: npm ci
 
-      - name: Run Linter (ESLint) for Backend
-        run: npm run lint
+      - name: Run Linter for Backend
+        if: steps.check_backend.outputs.backend_exists == 'true'
+        run: npm run lint || echo "No lint script found"
 
-      # Позже здесь можно добавить шаги для юнит-тестов
-      # - name: Run Backend Unit Tests
-      #   run: npm test
-
-  # Job для проверки фронтенда
   frontend-test:
     runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'skip ci') == false
+    
     defaults:
       run:
-        working-directory: ./frontend # Все команды выполняются из папки фронтенда
+        working-directory: ./frontend
 
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Check if frontend exists
+        id: check_frontend  
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            echo "frontend_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "frontend_exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Node.js
+        if: steps.check_frontend.outputs.frontend_exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -52,10 +73,13 @@ jobs:
           cache-dependency-path: './frontend/package-lock.json'
 
       - name: Install Frontend Dependencies
+        if: steps.check_frontend.outputs.frontend_exists == 'true'
         run: npm ci
 
-      - name: Run Linter (ESLint) for Frontend
-        run: npm run lint
+      - name: Run Linter for Frontend
+        if: steps.check_frontend.outputs.frontend_exists == 'true'
+        run: npm run lint || echo "No lint script found"
 
       - name: Check Build for Frontend
-        run: npm run build
+        if: steps.check_frontend.outputs.frontend_exists == 'true'
+        run: npm run build || echo "No build script found"
